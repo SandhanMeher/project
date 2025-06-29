@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 import javax.faces.application.FacesMessage;
 import javax.faces.context.FacesContext;
@@ -20,109 +21,146 @@ import com.infinite.model.DoctorAvailability;
 import com.infinite.model.Doctors;
 import com.infinite.model.Providers;
 import com.infinite.model.Recipient;
+import com.infinite.util.SessionHelper;
+
+import org.hibernate.Query;
+import org.hibernate.Session;
 
 public class DoctorProviderController implements Serializable {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient DoctorDaoImpl doctorDao = new DoctorDaoImpl();
-	private transient ProviderDaoImpl providerDao = new ProviderDaoImpl();
-	private transient RecipientDaoImpl recipientDao = new RecipientDaoImpl();
-	private transient DoctorAvailabilityDaoImpl availabilityDao = new DoctorAvailabilityDaoImpl();
-	private transient AppointmentDaoImpl appointmentDao = new AppointmentDaoImpl();
+    private transient DoctorDaoImpl doctorDao = new DoctorDaoImpl();
+    private transient ProviderDaoImpl providerDao = new ProviderDaoImpl();
+    private transient RecipientDaoImpl recipientDao = new RecipientDaoImpl();
+    private transient DoctorAvailabilityDaoImpl availabilityDao = new DoctorAvailabilityDaoImpl();
+    private transient AppointmentDaoImpl appointmentDao = new AppointmentDaoImpl();
 
-	private Doctors doctor;
-	private Providers provider;
-	private Recipient recipient;
-	private DoctorAvailability availability;
-	private Appointment appointment = new Appointment();
+    private Doctors doctor;
+    private Providers provider;
+    private Recipient recipient;
+    private DoctorAvailability availability;
+    private Appointment appointment = new Appointment();
 
-	private String doctorId;
-	private String providerId;
-	private String customDate;
-	private String notes;
+    private String doctorId;
+    private String providerId;
+    private String customDate;
+    private String notes;
 
-	public DoctorProviderController() {
-		HttpSession session = (HttpSession) FacesContext.getCurrentInstance().getExternalContext().getSession(false);
-		doctorId = (String) session.getAttribute("selectedDoctorId");
-		providerId = (String) session.getAttribute("selectedProviderId");
+    public DoctorProviderController() {
+        HttpSession session = (HttpSession) FacesContext.getCurrentInstance().getExternalContext().getSession(false);
+        doctorId = (String) session.getAttribute("selectedDoctorId");
+        providerId = (String) session.getAttribute("selectedProviderId");
 
-		loadEntities();
-	}
+        loadEntities();
+    }
 
-	private void loadEntities() {
-		if (doctorId != null && !doctorId.isEmpty()) {
-			doctor = doctorDao.searchADoctorById(doctorId);
-		}
-		if (providerId != null && !providerId.isEmpty()) {
-			provider = providerDao.searchProviderById(providerId);
-		}
-		recipient = recipientDao.searchRecipientById("H1005");
-		availability = availabilityDao.searchDoctorAvailabilityByDoctorId(doctorId);
-	}
+    private void loadEntities() {
+        if (doctorId != null && !doctorId.isEmpty()) {
+            doctor = doctorDao.searchADoctorById(doctorId);
+        }
+        if (providerId != null && !providerId.isEmpty()) {
+            provider = providerDao.searchProviderById(providerId);
+        }
+        recipient = recipientDao.searchRecipientById("H1005"); // Hardcoded recipient, can be dynamic
+        availability = availabilityDao.searchDoctorAvailabilityByDoctorId(doctorId);
+    }
 
-	public String bookAppointment() {
-		try {
-			if (customDate == null || customDate.isEmpty()) {
-				FacesContext.getCurrentInstance().addMessage(null,
-						new FacesMessage(FacesMessage.SEVERITY_ERROR, "Appointment date is required.", null));
-				return null;
-			}
+    public String bookAppointment() {
+        try {
+            if (customDate == null || customDate.isEmpty()) {
+                FacesContext.getCurrentInstance().addMessage(null,
+                    new FacesMessage(FacesMessage.SEVERITY_ERROR, "Appointment date is required.", null));
+                return null;
+            }
 
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-			Date parsedDate = sdf.parse(customDate);
-			Timestamp bookedAt = new Timestamp(parsedDate.getTime());
+            if (availability == null) {
+                FacesContext.getCurrentInstance().addMessage(null,
+                    new FacesMessage(FacesMessage.SEVERITY_ERROR, "No availability found for the doctor.", null));
+                return null;
+            }
 
-			appointment.setDoctor(doctor);
-			appointment.setProvider(provider);
-			appointment.setRecipient(recipient);
-			appointment.setAvailability(availability);
-			appointment.setBooked_at(bookedAt);
-			appointment.setRequested_at(new Timestamp(System.currentTimeMillis()));
-			appointment.setStatus(AppointmentStatus.PENDING);
-			appointment.setNotes(notes);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            Date parsedDate = sdf.parse(customDate);
+            Timestamp bookedAt = new Timestamp(parsedDate.getTime());
 
-			String result = appointmentDao.bookAnAppointment(appointment);
+            // Count existing appointments for this availability
+            int existingAppointments = getCurrentAppointmentsCount(availability.getAvailability_id());
 
-			HttpSession session = (HttpSession) FacesContext.getCurrentInstance().getExternalContext()
-					.getSession(false);
+            if (existingAppointments >= availability.getMax_capacity()) {
+                FacesContext.getCurrentInstance().addMessage(null,
+                    new FacesMessage(FacesMessage.SEVERITY_WARN, "All slots are already booked.", null));
+                return null;
+            }
 
-			if (result.startsWith("Appointment Booked")) {
-				session.setAttribute("confirmationMessage", "✅ " + result);
-				return "appointmentConfirmation?faces-redirect=true";
-			} else {
-				session.setAttribute("confirmationMessage", "⚠️ " + result);
-				return "index?faces-redirect=true";
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR,
-					"An error occurred while booking appointment.", null));
-			return null;
-		}
-	}
+            int slotNo = existingAppointments + 1;
 
-	// Getters and setters
-	public Doctors getDoctor() {
-		return doctor;
-	}
+            // Set appointment fields
+            appointment.setDoctor(doctor);
+            appointment.setProvider(provider);
+            appointment.setRecipient(recipient);
+            appointment.setAvailability(availability);
+            appointment.setBooked_at(bookedAt);
+            appointment.setRequested_at(new Timestamp(System.currentTimeMillis()));
+            appointment.setStatus(AppointmentStatus.PENDING);
+            appointment.setNotes(notes);
+            appointment.setSlot_no(slotNo);
 
-	public Providers getProvider() {
-		return provider;
-	}
+            String result = appointmentDao.bookAnAppointment(appointment);
 
-	public String getCustomDate() {
-		return customDate;
-	}
+            HttpSession session = (HttpSession) FacesContext.getCurrentInstance().getExternalContext().getSession(false);
 
-	public void setCustomDate(String customDate) {
-		this.customDate = customDate;
-	}
+            if (result.startsWith("Appointment Booked")) {
+                session.setAttribute("confirmationMessage", "✅ " + result);
+                return "appointmentConfirmation?faces-redirect=true";
+            } else {
+                session.setAttribute("confirmationMessage", "⚠️ " + result);
+                return "index?faces-redirect=true";
+            }
 
-	public String getNotes() {
-		return notes;
-	}
+        } catch (Exception e) {
+            e.printStackTrace();
+            FacesContext.getCurrentInstance().addMessage(null,
+                new FacesMessage(FacesMessage.SEVERITY_ERROR, "Error while booking appointment.", null));
+            return null;
+        }
+    }
 
-	public void setNotes(String notes) {
-		this.notes = notes;
-	}
+    private int getCurrentAppointmentsCount(String availabilityId) {
+        int count = 0;
+        try {Session session = SessionHelper.getSessionFactory().openSession();
+        Query query = session.createQuery(
+        	    "SELECT COUNT(a) FROM Appointment a WHERE a.availability.availability_id = :aid");
+        	query.setParameter("aid", availabilityId);
+        	Long result = (Long) query.uniqueResult();
+            if (result != null) count = result.intValue();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return count;
+    }
+
+    // Getters and Setters
+    public Doctors getDoctor() {
+        return doctor;
+    }
+
+    public Providers getProvider() {
+        return provider;
+    }
+
+    public String getCustomDate() {
+        return customDate;
+    }
+
+    public void setCustomDate(String customDate) {
+        this.customDate = customDate;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
 }

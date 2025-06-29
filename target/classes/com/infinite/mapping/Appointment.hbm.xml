@@ -35,6 +35,9 @@
 		<property name="booked_at" column="booked_at" />
 		<property name="notes" column="notes" />
 
+		<!-- New slot_no field -->
+		<property name="slot_no" column="slot_no" not-null="true" />
+
 		<!-- AppointmentStatus enum handled as string -->
 		<property name="status">
 			<column name="status"/>
