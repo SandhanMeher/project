@@ -1,166 +1,221 @@
 package com.infinite.controller;
 
 import java.io.Serializable;
+import java.sql.Date;
 import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
+import java.util.ArrayList;
 
 import javax.faces.application.FacesMessage;
 import javax.faces.context.FacesContext;
+import javax.faces.model.SelectItem;
 import javax.servlet.http.HttpSession;
-
-import com.infinite.dao.AppointmentDaoImpl;
-import com.infinite.dao.DoctorAvailabilityDaoImpl;
-import com.infinite.dao.DoctorDaoImpl;
-import com.infinite.dao.ProviderDaoImpl;
-import com.infinite.dao.RecipientDaoImpl;
-import com.infinite.model.Appointment;
-import com.infinite.model.AppointmentStatus;
-import com.infinite.model.DoctorAvailability;
-import com.infinite.model.Doctors;
-import com.infinite.model.Providers;
-import com.infinite.model.Recipient;
-import com.infinite.util.SessionHelper;
 
 import org.hibernate.Query;
 import org.hibernate.Session;
 
+import com.infinite.dao.*;
+import com.infinite.model.*;
+import com.infinite.util.SessionHelper;
+
 public class DoctorProviderController implements Serializable {
-    private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
-    private transient DoctorDaoImpl doctorDao = new DoctorDaoImpl();
-    private transient ProviderDaoImpl providerDao = new ProviderDaoImpl();
-    private transient RecipientDaoImpl recipientDao = new RecipientDaoImpl();
-    private transient DoctorAvailabilityDaoImpl availabilityDao = new DoctorAvailabilityDaoImpl();
-    private transient AppointmentDaoImpl appointmentDao = new AppointmentDaoImpl();
+	// DAOs
+	private transient DoctorDaoImpl doctorDao = new DoctorDaoImpl();
+	private transient ProviderDaoImpl providerDao = new ProviderDaoImpl();
+	private transient RecipientDaoImpl recipientDao = new RecipientDaoImpl();
+	private transient DoctorAvailabilityDaoImpl availabilityDao = new DoctorAvailabilityDaoImpl();
+	private transient AppointmentDaoImpl appointmentDao = new AppointmentDaoImpl();
 
-    private Doctors doctor;
-    private Providers provider;
-    private Recipient recipient;
-    private DoctorAvailability availability;
-    private Appointment appointment = new Appointment();
+	// Entities
+	private Doctors doctor;
+	private Providers provider;
+	private Recipient recipient;
 
-    private String doctorId;
-    private String providerId;
-    private String customDate;
-    private String notes;
+	// Form fields
+	private String doctorId;
+	private String providerId;
+	private String customDate;
+	private String notes;
+	private String selectedAvailabilityId;
 
-    public DoctorProviderController() {
-        HttpSession session = (HttpSession) FacesContext.getCurrentInstance().getExternalContext().getSession(false);
-        doctorId = (String) session.getAttribute("selectedDoctorId");
-        providerId = (String) session.getAttribute("selectedProviderId");
+	private List<DoctorAvailability> availableSlots = new ArrayList<>();
+	private Appointment appointment = new Appointment();
 
-        loadEntities();
-    }
+	// Constructor
+	public DoctorProviderController() {
+		HttpSession session = (HttpSession) FacesContext.getCurrentInstance().getExternalContext().getSession(false);
+		doctorId = (String) session.getAttribute("selectedDoctorId");
+		providerId = (String) session.getAttribute("selectedProviderId");
+		loadEntities();
+	}
 
-    private void loadEntities() {
-        if (doctorId != null && !doctorId.isEmpty()) {
-            doctor = doctorDao.searchADoctorById(doctorId);
-        }
-        if (providerId != null && !providerId.isEmpty()) {
-            provider = providerDao.searchProviderById(providerId);
-        }
-        recipient = recipientDao.searchRecipientById("H1005"); // Hardcoded recipient, can be dynamic
-        availability = availabilityDao.searchDoctorAvailabilityByDoctorId(doctorId);
-    }
+	private void loadEntities() {
+		if (doctorId != null && !doctorId.isEmpty()) {
+			doctor = doctorDao.searchADoctorById(doctorId);
+		}
+		if (providerId != null && !providerId.isEmpty()) {
+			provider = providerDao.searchProviderById(providerId);
+		}
+		// Make dynamic later
+		recipient = recipientDao.searchRecipientById("H1005");
+	}
 
-    public String bookAppointment() {
-        try {
-            if (customDate == null || customDate.isEmpty()) {
-                FacesContext.getCurrentInstance().addMessage(null,
-                    new FacesMessage(FacesMessage.SEVERITY_ERROR, "Appointment date is required.", null));
-                return null;
-            }
+	// Called when user clicks "Find Slots"
+	public void findAvailabilityForDate() {
+		searchSlotsByDate();
+	}
 
-            if (availability == null) {
-                FacesContext.getCurrentInstance().addMessage(null,
-                    new FacesMessage(FacesMessage.SEVERITY_ERROR, "No availability found for the doctor.", null));
-                return null;
-            }
+	public void searchSlotsByDate() {
+		try {
+			if (customDate == null || customDate.trim().isEmpty()) {
+				FacesContext.getCurrentInstance().addMessage(null,
+						new FacesMessage(FacesMessage.SEVERITY_WARN, "Please enter a valid date.", null));
+				return;
+			}
 
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            Date parsedDate = sdf.parse(customDate);
-            Timestamp bookedAt = new Timestamp(parsedDate.getTime());
+			Date parsedDate = Date.valueOf(customDate.trim());
+			availableSlots = availabilityDao.getAvailableSlotsByDoctorAndDate(doctorId, parsedDate);
 
-            // Count existing appointments for this availability
-            int existingAppointments = getCurrentAppointmentsCount(availability.getAvailability_id());
+			if (availableSlots == null || availableSlots.isEmpty()) {
+				FacesContext.getCurrentInstance().addMessage(null,
+						new FacesMessage(FacesMessage.SEVERITY_INFO, "No slots available for selected date.", null));
+			}
 
-            if (existingAppointments >= availability.getMax_capacity()) {
-                FacesContext.getCurrentInstance().addMessage(null,
-                    new FacesMessage(FacesMessage.SEVERITY_WARN, "All slots are already booked.", null));
-                return null;
-            }
+		} catch (Exception e) {
+			e.printStackTrace();
+			FacesContext.getCurrentInstance().addMessage(null,
+					new FacesMessage(FacesMessage.SEVERITY_ERROR, "Failed to fetch available slots.", null));
+		}
+	}
 
-            int slotNo = existingAppointments + 1;
+	public List<SelectItem> getSlotOptions() {
+		List<SelectItem> items = new ArrayList<>();
+		if (availableSlots != null) {
+			for (DoctorAvailability slot : availableSlots) {
+				int booked = getCurrentAppointmentsCount(slot.getAvailability_id());
+				boolean isFull = booked >= slot.getMax_capacity();
 
-            // Set appointment fields
-            appointment.setDoctor(doctor);
-            appointment.setProvider(provider);
-            appointment.setRecipient(recipient);
-            appointment.setAvailability(availability);
-            appointment.setBooked_at(bookedAt);
-            appointment.setRequested_at(new Timestamp(System.currentTimeMillis()));
-            appointment.setStatus(AppointmentStatus.PENDING);
-            appointment.setNotes(notes);
-            appointment.setSlot_no(slotNo);
+				// Format: 09:00 - 09:30
+				String label = String.format("%tR - %tR", slot.getStart_time(), slot.getEnd_time());
+				if (isFull)
+					label += " (Full)";
 
-            String result = appointmentDao.bookAnAppointment(appointment);
+				items.add(new SelectItem(slot.getAvailability_id(), label));
+			}
+		}
+		return items;
+	}
 
-            HttpSession session = (HttpSession) FacesContext.getCurrentInstance().getExternalContext().getSession(false);
+	public String bookAppointment() {
+		try {
+			if (selectedAvailabilityId == null || selectedAvailabilityId.isEmpty()) {
+				FacesContext.getCurrentInstance().addMessage(null,
+						new FacesMessage(FacesMessage.SEVERITY_ERROR, "Please select a time slot.", null));
+				return null;
+			}
 
-            if (result.startsWith("Appointment Booked")) {
-                session.setAttribute("confirmationMessage", "✅ " + result);
-                return "appointmentConfirmation?faces-redirect=true";
-            } else {
-                session.setAttribute("confirmationMessage", "⚠️ " + result);
-                return "index?faces-redirect=true";
-            }
+			DoctorAvailability selectedAvailability = availabilityDao.getAvailabilityById(selectedAvailabilityId);
+			if (selectedAvailability == null) {
+				FacesContext.getCurrentInstance().addMessage(null,
+						new FacesMessage(FacesMessage.SEVERITY_ERROR, "Selected slot is invalid.", null));
+				return null;
+			}
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            FacesContext.getCurrentInstance().addMessage(null,
-                new FacesMessage(FacesMessage.SEVERITY_ERROR, "Error while booking appointment.", null));
-            return null;
-        }
-    }
+			int currentCount = getCurrentAppointmentsCount(selectedAvailabilityId);
+			if (currentCount >= selectedAvailability.getMax_capacity()) {
+				FacesContext.getCurrentInstance().addMessage(null,
+						new FacesMessage(FacesMessage.SEVERITY_WARN, "Selected slot is already full.", null));
+				return null;
+			}
 
-    private int getCurrentAppointmentsCount(String availabilityId) {
-        int count = 0;
-        try {Session session = SessionHelper.getSessionFactory().openSession();
-        Query query = session.createQuery(
-        	    "SELECT COUNT(a) FROM Appointment a WHERE a.availability.availability_id = :aid");
-        	query.setParameter("aid", availabilityId);
-        	Long result = (Long) query.uniqueResult();
-            if (result != null) count = result.intValue();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return count;
-    }
+			// Prepare appointment
+			Timestamp now = new Timestamp(System.currentTimeMillis());
+			appointment = new Appointment(); // Always new for clean object
 
-    // Getters and Setters
-    public Doctors getDoctor() {
-        return doctor;
-    }
+			appointment.setDoctor(doctor);
+			appointment.setProvider(provider);
+			appointment.setRecipient(recipient);
+			appointment.setAvailability(selectedAvailability);
+			appointment.setBooked_at(now);
+			appointment.setRequested_at(now);
+			appointment.setStatus(AppointmentStatus.PENDING);
+			appointment.setNotes(notes);
+			appointment.setSlot_no(currentCount + 1);
 
-    public Providers getProvider() {
-        return provider;
-    }
+			String result = appointmentDao.bookAnAppointment(appointment);
 
-    public String getCustomDate() {
-        return customDate;
-    }
+			HttpSession session = (HttpSession) FacesContext.getCurrentInstance().getExternalContext()
+					.getSession(false);
 
-    public void setCustomDate(String customDate) {
-        this.customDate = customDate;
-    }
+			if (result.startsWith("Appointment Booked")) {
+				session.setAttribute("confirmationMessage", "✅ " + result);
+				return "appointmentConfirmation?faces-redirect=true";
+			} else {
+				session.setAttribute("confirmationMessage", "⚠️ " + result);
+				return "index?faces-redirect=true";
+			}
 
-    public String getNotes() {
-        return notes;
-    }
+		} catch (Exception e) {
+			e.printStackTrace();
+			FacesContext.getCurrentInstance().addMessage(null,
+					new FacesMessage(FacesMessage.SEVERITY_ERROR, "Unexpected error during booking.", null));
+			return null;
+		}
+	}
 
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
+	private int getCurrentAppointmentsCount(String availabilityId) {
+		int count = 0;
+		try {
+			Session session = SessionHelper.getSessionFactory().openSession();
+			Query query = session
+					.createQuery("SELECT COUNT(a) FROM Appointment a WHERE a.availability.availability_id = :aid");
+			query.setParameter("aid", availabilityId);
+			Long result = (Long) query.uniqueResult();
+			if (result != null)
+				count = result.intValue();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return count;
+	}
+
+	// Getters & Setters
+
+	public Doctors getDoctor() {
+		return doctor;
+	}
+
+	public Providers getProvider() {
+		return provider;
+	}
+
+	public String getCustomDate() {
+		return customDate;
+	}
+
+	public void setCustomDate(String customDate) {
+		this.customDate = customDate;
+	}
+
+	public String getNotes() {
+		return notes;
+	}
+
+	public void setNotes(String notes) {
+		this.notes = notes;
+	}
+
+	public List<DoctorAvailability> getAvailableSlots() {
+		return availableSlots;
+	}
+
+	public String getSelectedAvailabilityId() {
+		return selectedAvailabilityId;
+	}
+
+	public void setSelectedAvailabilityId(String selectedAvailabilityId) {
+		this.selectedAvailabilityId = selectedAvailabilityId;
+	}
 }
