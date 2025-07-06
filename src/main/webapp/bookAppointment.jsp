@@ -39,8 +39,11 @@
 					<h:selectOneMenu value="#{appointmentController.selectedSlot}"
 						styleClass="w-full px-3 py-2 border border-gray-300 rounded">
 						<f:selectItem itemLabel="-- Select --" itemValue="0" />
-						<f:selectItems value="#{appointmentController.availableSlots}" />
+						<f:selectItems value="#{appointmentController.availableSlots}"
+							var="slot" itemValue="#{slot.slotNumber}"
+							itemLabel="#{slot.displayLabel}" />
 					</h:selectOneMenu>
+
 				</div>
 
 				<!-- Success / Error Message -->

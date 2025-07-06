@@ -3,6 +3,8 @@ package com.infinite.controller;
 import java.io.Serializable;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ManagedBean;
@@ -12,35 +14,55 @@ import com.infinite.dao.AppointmentDao;
 import com.infinite.dao.AppointmentDaoImpl;
 import com.infinite.model.*;
 
-
+@ManagedBean
+@SessionScoped
 public class AppointmentController implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private String availabilityId = "A2012"; // default value
+	private String availabilityId = "A2012";
 	private int selectedSlot;
 	private Appointment appointment = new Appointment();
-	private List<Integer> availableSlots;
+	private List<SlotDisplay> availableSlots;
 
 	private String message;
 	private boolean success;
 
 	private AppointmentDao appointmentDao = new AppointmentDaoImpl();
 
-	// Load available slot numbers from DAO
 	public void loadAvailableSlots() {
-		availableSlots = appointmentDao.getAvailableSlotNumbers(availabilityId);
+		List<Integer> slotNumbers = appointmentDao.getAvailableSlotNumbers(availabilityId);
+
+		// Sample hardcoded availability; ideally fetch from DB
+		Timestamp start = Timestamp.valueOf("2025-07-09 10:30:00");
+		Timestamp end = Timestamp.valueOf("2025-07-09 11:30:00");
+		int maxCapacity = 4;
+
+		availableSlots = new ArrayList<>();
+
+		long totalMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+		long slotMinutes = totalMinutes / maxCapacity;
+
+		for (int slotNo : slotNumbers) {
+			long slotStartMillis = start.getTime() + (slotNo - 1) * slotMinutes * 60 * 1000;
+			long slotEndMillis = slotStartMillis + slotMinutes * 60 * 1000;
+
+			LocalTime slotStartTime = new Timestamp(slotStartMillis).toLocalDateTime().toLocalTime();
+			LocalTime slotEndTime = new Timestamp(slotEndMillis).toLocalDateTime().toLocalTime();
+
+			availableSlots.add(new SlotDisplay(slotNo, slotStartTime.toString(), slotEndTime.toString()));
+		}
+
 		message = availableSlots.isEmpty() ? "❌ No available slots for Availability ID " + availabilityId
 				: "✅ Loaded " + availableSlots.size() + " available slot(s)";
 		success = !availableSlots.isEmpty();
 	}
 
-	// Book appointment
 	public String bookAppointment() {
 		try {
 			DoctorAvailability availability = new DoctorAvailability();
 			availability.setAvailability_id(availabilityId);
-			availability.setMax_capacity(4); // hardcoded for now
+			availability.setMax_capacity(4);
 
 			Doctors doctor = new Doctors();
 			doctor.setDoctor_id("D1003");
@@ -78,7 +100,7 @@ public class AppointmentController implements Serializable {
 			if (result.startsWith("Appointment booked")) {
 				success = true;
 				message = "✅ " + result;
-				loadAvailableSlots(); // refresh slot list after booking
+				loadAvailableSlots();
 			} else {
 				success = false;
 				message = "❌ Booking failed: " + result;
@@ -88,7 +110,7 @@ public class AppointmentController implements Serializable {
 			success = false;
 			message = "❌ Internal error: " + e.getMessage();
 		}
-		return null; // stay on same page
+		return null;
 	}
 
 	// Getters and Setters
@@ -112,7 +134,7 @@ public class AppointmentController implements Serializable {
 		return appointment;
 	}
 
-	public List<Integer> getAvailableSlots() {
+	public List<SlotDisplay> getAvailableSlots() {
 		return availableSlots;
 	}
 
