@@ -13,6 +13,7 @@ public class DoctorAvailability {
     private Time end_time;
     private SlotType slot_type; // ENUM('STANDARD', 'ADHOC')
     private int max_capacity;
+    private int patient_window; // Auto-calculated by DB
     private boolean is_recurring;
     private String notes;
     private Timestamp created_at;
@@ -73,6 +74,14 @@ public class DoctorAvailability {
 
     public void setMax_capacity(int max_capacity) {
         this.max_capacity = max_capacity;
+    }
+
+    public int getPatient_window() {
+        return patient_window;
+    }
+
+    public void setPatient_window(int patient_window) {
+        this.patient_window = patient_window;
     }
 
     public boolean isIs_recurring() {
