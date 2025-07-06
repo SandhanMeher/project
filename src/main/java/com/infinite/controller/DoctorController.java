@@ -52,7 +52,7 @@ public class DoctorController implements Serializable {
 			FacesContext context = FacesContext.getCurrentInstance();
 			HttpSession session = (HttpSession) context.getExternalContext().getSession(true);
 			session.setAttribute("selectedDoctorId", doctorId);
-			return "appointmentBooking?faces-redirect=true";
+			return "doctorAvailabilityList?faces-redirect=true";
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
@@ -98,7 +98,12 @@ public class DoctorController implements Serializable {
 	}
 
 	public List<Doctors> getDoctorList() {
-		init();
+		if (!initialized) {
+			init();
+		}
+		if (paginatedList == null) {
+			applyFilterSortAndPagination();
+		}
 		return paginatedList;
 	}
 
@@ -113,6 +118,8 @@ public class DoctorController implements Serializable {
 	}
 
 	public boolean isHasNextPage() {
+		if (fullList == null || fullList.isEmpty())
+			return false;
 		int totalFiltered = (int) fullList.stream().filter(this::matchesFilter).count();
 		return (currentPage + 1) * pageSize < totalFiltered;
 	}

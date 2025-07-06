@@ -1,5 +1,7 @@
 package com.infinite.model;
 
+import java.util.List;
+
 public class Doctors {
 
     private String doctor_id;
@@ -14,6 +16,9 @@ public class Doctors {
     private String password;
     private LoginStatus login_status;     // Enum: PENDING, APPROVED, REJECTED
     private DoctorStatus doctor_status;   // Enum: ACTIVE, INACTIVE
+
+    // ✅ One-to-Many: A doctor can have multiple availability slots
+    private List<DoctorAvailability> availabilityList;
 
     // Getters and Setters
 
@@ -111,5 +116,13 @@ public class Doctors {
 
     public void setDoctor_status(DoctorStatus doctor_status) {
         this.doctor_status = doctor_status;
+    }
+
+    public List<DoctorAvailability> getAvailabilityList() {
+        return availabilityList;
+    }
+
+    public void setAvailabilityList(List<DoctorAvailability> availabilityList) {
+        this.availabilityList = availabilityList;
     }
 }

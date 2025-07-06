@@ -18,8 +18,6 @@
 		<!-- Connection pool size -->
 		<property name="hibernate.connection.pool_size">10</property>
 
-		<!-- Show SQL in console -->
-		<property name="hibernate.show_sql">true</property>
 
 		<!-- Format SQL -->
 		<property name="hibernate.format_sql">true</property>

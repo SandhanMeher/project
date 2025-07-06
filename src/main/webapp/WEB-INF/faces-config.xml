@@ -15,13 +15,13 @@
 	<managed-bean>
 		<managed-bean-name>doctorController</managed-bean-name>
 		<managed-bean-class>com.infinite.controller.DoctorController</managed-bean-class>
-		<managed-bean-scope>view</managed-bean-scope>
+		<managed-bean-scope>session</managed-bean-scope>
 	</managed-bean>
 
 	<managed-bean>
 		<managed-bean-name>appointmentController</managed-bean-name>
 		<managed-bean-class>com.infinite.controller.AppointmentController</managed-bean-class>
-		<managed-bean-scope>view</managed-bean-scope>
+		<managed-bean-scope>session</managed-bean-scope>
 	</managed-bean>
 
 	<managed-bean>
@@ -32,8 +32,12 @@
 	<managed-bean>
 		<managed-bean-name>appointmentPdfController</managed-bean-name>
 		<managed-bean-class>com.infinite.controller.AppointmentPdfController</managed-bean-class>
-		<managed-bean-scope>request</managed-bean-scope>
+		<managed-bean-scope>session</managed-bean-scope>
 	</managed-bean>
-
-
+		<managed-bean>
+		<managed-bean-name>doctorAvailabilityController</managed-bean-name>
+		<managed-bean-class>com.infinite.controller.DoctorAvailabilityController</managed-bean-class>
+		<managed-bean-scope>session</managed-bean-scope>
+	</managed-bean>
+	
 </faces-config>
