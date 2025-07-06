@@ -5,18 +5,25 @@ import java.sql.Timestamp;
 public class Appointment {
 
 	private String appointment_id;
+
 	private Doctors doctor; // Many-to-One
 	private Recipient recipient; // Many-to-One
-	private DoctorAvailability availability; // One-to-One or Many-to-One
+	private DoctorAvailability availability; // Many-to-One
 	private Providers provider; // Many-to-One
+
 	private Timestamp requested_at;
 	private Timestamp booked_at;
+	private Timestamp cancelled_at; // NEW
+	private Timestamp completed_at; // NEW
+
 	private AppointmentStatus status;
 	private String notes;
-	private int slot_no; // New Field: NOT NULL in DB
+
+	private int slot_no;
+	private Timestamp start; // NEW
+	private Timestamp end;   // NEW
 
 	// Getters and Setters
-
 	public String getAppointment_id() {
 		return appointment_id;
 	}
@@ -73,6 +80,22 @@ public class Appointment {
 		this.booked_at = booked_at;
 	}
 
+	public Timestamp getCancelled_at() {
+		return cancelled_at;
+	}
+
+	public void setCancelled_at(Timestamp cancelled_at) {
+		this.cancelled_at = cancelled_at;
+	}
+
+	public Timestamp getCompleted_at() {
+		return completed_at;
+	}
+
+	public void setCompleted_at(Timestamp completed_at) {
+		this.completed_at = completed_at;
+	}
+
 	public AppointmentStatus getStatus() {
 		return status;
 	}
@@ -95,5 +118,21 @@ public class Appointment {
 
 	public void setSlot_no(int slot_no) {
 		this.slot_no = slot_no;
+	}
+
+	public Timestamp getStart() {
+		return start;
+	}
+
+	public void setStart(Timestamp start) {
+		this.start = start;
+	}
+
+	public Timestamp getEnd() {
+		return end;
+	}
+
+	public void setEnd(Timestamp end) {
+		this.end = end;
 	}
 }

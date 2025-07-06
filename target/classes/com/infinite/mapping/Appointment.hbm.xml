@@ -33,14 +33,18 @@
 		<!-- Timestamps and basic fields -->
 		<property name="requested_at" column="requested_at" />
 		<property name="booked_at" column="booked_at" />
+		<property name="cancelled_at" column="cancelled_at" />
+		<property name="completed_at" column="completed_at" />
+		<property name="start" column="start" />
+		<property name="end" column="end" />
 		<property name="notes" column="notes" />
 
-		<!-- New slot_no field -->
+		<!-- slot_no -->
 		<property name="slot_no" column="slot_no" not-null="true" />
 
-		<!-- AppointmentStatus enum handled as string -->
+		<!-- AppointmentStatus enum -->
 		<property name="status">
-			<column name="status"/>
+			<column name="status" />
 			<type name="org.hibernate.type.EnumType">
 				<param name="enumClass">com.infinite.model.AppointmentStatus</param>
 				<param name="type">12</param> <!-- 12 = VARCHAR -->
