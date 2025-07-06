@@ -1,6 +1,8 @@
 package com.infinite.controller;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -16,10 +18,12 @@ public class DoctorAvailabilityController implements Serializable {
 
 	private DoctorAvailabilityDaoImpl dao = new DoctorAvailabilityDaoImpl();
 
-	private List<DoctorAvailability> availabilityList;
-	private String doctorId;
+	private String doctorId = "D1003"; // Hardcoded for testing
+	private List<DoctorAvailability> futureAvailabilityList;
+	private List<DoctorAvailability> searchedAvailabilityList;
 
-	private Date selectedDate;
+	private Date searchDate;
+
 	private boolean initialized = false;
 
 	public void init() {
@@ -27,52 +31,49 @@ public class DoctorAvailabilityController implements Serializable {
 			return;
 		initialized = true;
 
-		try {
-			HttpSession session = (HttpSession) FacesContext.getCurrentInstance().getExternalContext()
-					.getSession(false);
+		loadNextFiveDaysAvailability();
+	}
 
-			// For isolated testing
-			doctorId = "D1003";
-			// doctorId = (String) session.getAttribute("selectedDoctorId");
-
-			if (doctorId != null) {
-				availabilityList = dao.getUpcomingAvailabilitiesForDoctor(doctorId,
-						new java.sql.Date(System.currentTimeMillis()));
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
+	public void loadNextFiveDaysAvailability() {
+		futureAvailabilityList = new ArrayList<>();
+		Calendar cal = Calendar.getInstance();
+		for (int i = 0; i < 5; i++) {
+			Date date = cal.getTime();
+			List<DoctorAvailability> daySlots = dao.getAvailableSlotsByDoctorAndDate(doctorId,
+					new java.sql.Date(date.getTime()));
+			futureAvailabilityList.addAll(daySlots);
+			cal.add(Calendar.DATE, 1);
 		}
 	}
 
-	public void loadAvailabilityByDate() {
-		try {
-			if (doctorId != null && selectedDate != null) {
-				java.sql.Date sqlDate = new java.sql.Date(selectedDate.getTime());
-				availabilityList = dao.getAvailableSlotsByDoctorAndDate(doctorId, sqlDate);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
+	public void searchAvailabilityByDate() {
+		searchedAvailabilityList = new ArrayList<>();
+		if (searchDate != null) {
+			java.sql.Date sqlDate = new java.sql.Date(searchDate.getTime());
+			searchedAvailabilityList = dao.getAvailableSlotsByDoctorAndDate(doctorId, sqlDate);
 		}
 	}
 
-	// ========================
 	// Getters and Setters
-	// ========================
 
-	public List<DoctorAvailability> getAvailabilityList() {
+	public List<DoctorAvailability> getFutureAvailabilityList() {
 		init();
-		return availabilityList;
+		return futureAvailabilityList;
+	}
+
+	public List<DoctorAvailability> getSearchedAvailabilityList() {
+		return searchedAvailabilityList;
+	}
+
+	public Date getSearchDate() {
+		return searchDate;
+	}
+
+	public void setSearchDate(Date searchDate) {
+		this.searchDate = searchDate;
 	}
 
 	public String getDoctorId() {
 		return doctorId;
-	}
-
-	public Date getSelectedDate() {
-		return selectedDate;
-	}
-
-	public void setSelectedDate(Date selectedDate) {
-		this.selectedDate = selectedDate;
 	}
 }
