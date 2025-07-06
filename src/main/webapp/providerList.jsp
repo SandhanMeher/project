@@ -5,141 +5,212 @@
 <f:view>
 	<html>
 <head>
-<title>Doctor Availability</title>
+<title>Approved Providers</title>
+<!-- Tailwind CSS CDN -->
 <script src="https://cdn.tailwindcss.com"></script>
+<!-- Font Awesome CDN for icons -->
+<link rel="stylesheet"
+	href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-.scroll-x-container {
-	overflow-x: auto;
-	-webkit-overflow-scrolling: touch;
-	scrollbar-width: thin;
+.sortable-header {
+	transition: all 0.2s ease;
 }
 
-.scroll-x-container::-webkit-scrollbar {
-	height: 8px;
+.sortable-header:hover {
+	background-color: #f3f4f6;
 }
 
-.scroll-x-container::-webkit-scrollbar-track {
-	background: #e5e7eb;
-}
-
-.scroll-x-container::-webkit-scrollbar-thumb {
-	background: #3b82f6;
-	border-radius: 8px;
+.pagination-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-	<div
-		class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 bg-white rounded shadow">
-		<h1 class="text-3xl font-bold text-blue-800 mb-6">Doctor
-			Availability</h1>
-
-		<p class="text-gray-700 mb-6">
-			Doctor ID: <span class="font-semibold text-gray-900"> <h:outputText
-					value="#{doctorAvailabilityController.doctorId}" />
-			</span>
-		</p>
-
-		<!-- Search by Date -->
+<body class="bg-gray-50">
+	<div class="container mx-auto px-4 py-8">
 		<h:form>
-			<div class="flex flex-col sm:flex-row gap-4 items-center mb-10">
-				<label for="searchDate" class="font-semibold text-sm text-gray-600">Search
-					by Date (yyyy-MM-dd):</label>
-				<h:inputText id="searchDate"
-					value="#{doctorAvailabilityController.searchDate}"
-					styleClass="border rounded px-3 py-2 w-52"
-					converterMessage="Date format should be yyyy-MM-dd">
-					<f:convertDateTime pattern="yyyy-MM-dd" />
-				</h:inputText>
-				<h:commandButton value="Search"
-					action="#{doctorAvailabilityController.searchAvailabilityByDate}"
-					styleClass="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" />
+			<div class="bg-white rounded-lg shadow-md p-6">
+				<!-- Search Section -->
+				<div class="flex flex-col md:flex-row md:items-center gap-4 mt-4">
+					<h:selectOneMenu value="#{providerController.searchField}"
+						styleClass="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-1/4">
+						<f:selectItem itemValue="all" itemLabel="All" />
+						<f:selectItem itemValue="provider_name" itemLabel="By Name" />
+						<f:selectItem itemValue="hospital_name" itemLabel="By Hospital" />
+						<f:selectItem itemValue="city" itemLabel="By City" />
+						<f:selectItem itemValue="state" itemLabel="By State" />
+					</h:selectOneMenu>
+
+					<h:inputText value="#{providerController.searchText}"
+						styleClass="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-1/2" />
+					<h:commandButton value="Search"
+						action="#{providerController.searchProviders}"
+						styleClass="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+				</div>
+
+				<!-- Header Section -->
+				<div
+					class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+					<h1 class="text-2xl font-bold text-gray-800">
+						<h:outputText
+							value="Approved Providers - Page #{providerController.currentPage}" />
+					</h1>
+
+					<!-- Page Size Dropdown -->
+					<div class="mt-4 md:mt-0 flex items-center">
+						<h:outputLabel for="pageSize" value="Page Size:"
+							styleClass="mr-2 text-gray-700" />
+						<h:selectOneMenu id="pageSize"
+							value="#{providerController.pageSize}"
+							styleClass="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+							onchange="submit()">
+							<f:selectItem itemValue="5" itemLabel="5" />
+							<f:selectItem itemValue="10" itemLabel="10" />
+							<f:selectItem itemValue="20" itemLabel="20" />
+						</h:selectOneMenu>
+					</div>
+				</div>
+
+				<!-- Providers Table -->
+				<div class="overflow-x-auto">
+					<h:dataTable
+						value="#{providerController.paginatedApprovedProviders}" var="p"
+						styleClass="min-w-full">
+						<!-- Header row with colorful styling -->
+						<f:facet name="header">
+							<tr class="bg-gradient-to-r from-blue-600 to-blue-800">
+								<th colspan="8"
+									class="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
+									Approved Providers List</th>
+							</tr>
+						</f:facet>
+
+
+
+						<h:column>
+							<f:facet name="header">
+								<h:commandLink
+									action="#{providerController.sortBy('provider_name')}"
+									styleClass="flex items-center justify-between px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider bg-blue-500 hover:bg-blue-600">
+									<h:outputText value="Name" />
+									<i class="fas fa-sort ml-2"></i>
+								</h:commandLink>
+							</f:facet>
+							<div
+								class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 bg-blue-50 odd:bg-blue-100">
+								<h:outputText value="#{p.provider_name}" />
+							</div>
+						</h:column>
+
+						<h:column>
+							<f:facet name="header">
+								<h:commandLink
+									action="#{providerController.sortBy('hospital_name')}"
+									styleClass="flex items-center justify-between px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider bg-blue-500 hover:bg-blue-600">
+									<h:outputText value="Hospital" />
+									<i class="fas fa-sort ml-2"></i>
+								</h:commandLink>
+							</f:facet>
+							<div
+								class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 bg-blue-50 odd:bg-blue-100">
+								<h:outputText value="#{p.hospital_name}" />
+							</div>
+						</h:column>
+
+						<h:column>
+							<f:facet name="header">
+								<h:commandLink action="#{providerController.sortBy('email')}"
+									styleClass="flex items-center justify-between px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider bg-blue-500 hover:bg-blue-600">
+									<h:outputText value="Email" />
+									<i class="fas fa-sort ml-2"></i>
+								</h:commandLink>
+							</f:facet>
+							<div
+								class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 bg-blue-50 odd:bg-blue-100">
+								<h:outputText value="#{p.email}" />
+							</div>
+						</h:column>
+
+						<h:column>
+							<f:facet name="header">
+								<h:commandLink action="#{providerController.sortBy('city')}"
+									styleClass="flex items-center justify-between px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider bg-blue-500 hover:bg-blue-600">
+									<h:outputText value="City" />
+									<i class="fas fa-sort ml-2"></i>
+								</h:commandLink>
+							</f:facet>
+							<div
+								class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 bg-blue-50 odd:bg-blue-100">
+								<h:outputText value="#{p.city}" />
+							</div>
+						</h:column>
+
+						<h:column>
+							<f:facet name="header">
+								<h:commandLink action="#{providerController.sortBy('state')}"
+									styleClass="flex items-center justify-between px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider bg-blue-500 hover:bg-blue-600">
+									<h:outputText value="State" />
+									<i class="fas fa-sort ml-2"></i>
+								</h:commandLink>
+							</f:facet>
+							<div
+								class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 bg-blue-50 odd:bg-blue-100">
+								<h:outputText value="#{p.state}" />
+							</div>
+						</h:column>
+
+						<h:column>
+							<f:facet name="header">
+								<h:commandLink action="#{providerController.sortBy('zip_code')}"
+									styleClass="flex items-center justify-between px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider bg-blue-500 hover:bg-blue-600">
+									<h:outputText value="Zip Code" />
+									<i class="fas fa-sort ml-2"></i>
+								</h:commandLink>
+							</f:facet>
+							<div
+								class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 bg-blue-50 odd:bg-blue-100">
+								<h:outputText value="#{p.zip_code}" />
+							</div>
+						</h:column>
+						<!-- Column headers with colorful styling -->
+						<h:column>
+							<!-- Stylish Header with Label and Sort Icon -->
+							<f:facet name="header">
+								<h:commandLink
+									styleClass="flex items-center justify-between px-4 py-2 text-xs font-bold text-white uppercase tracking-wide bg-blue-600 hover:bg-blue-700 rounded">
+									<h:outputText value="Select The Provider" />
+
+								</h:commandLink>
+							</f:facet>
+
+							<!-- Row with a clean Select action -->
+							<div class="text-center py-2">
+								<h:commandLink value="Select"
+									action="#{providerController.goToDoctorList(p.provider_id)}"
+									styleClass="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition duration-150 text-sm" />
+							</div>
+						</h:column>
+
+					</h:dataTable>
+				</div>
+
+				<!-- Pagination Controls -->
+				<div class="flex items-center justify-between mt-6">
+					<h:commandButton value="⟵ Previous"
+						styleClass="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 pagination-btn"
+						action="#{providerController.prevPage}"
+						rendered="#{providerController.hasPrevPage}" />
+
+					<h:outputText value="Page #{providerController.currentPage}"
+						styleClass="text-sm text-gray-700" />
+
+					<h:commandButton value="Next ⟶"
+						styleClass="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 pagination-btn"
+						action="#{providerController.nextPage}"
+						rendered="#{providerController.hasNextPage}" />
+				</div>
 			</div>
 		</h:form>
-
-		<!-- Upcoming Grouped Availability -->
-		<h2 class="text-2xl font-semibold text-blue-700 mb-4">Upcoming
-			Availability</h2>
-		<div class="scroll-container overflow-x-auto pb-6 -mx-4 px-4">
-			<div class="flex gap-6 min-w-max">
-				<h:dataTable
-					value="#{doctorAvailabilityController.groupedAvailabilityList}"
-					var="group" styleClass="flex space-x-6" rowClasses="">
-					<h:column>
-						<div
-							class="bg-blue-50 border border-blue-200 p-4 w-64 rounded-lg shadow-sm">
-							<p class="font-bold text-blue-900 text-lg mb-2">
-								<h:outputText value="#{group.date}">
-									<f:convertDateTime pattern="yyyy-MM-dd" />
-								</h:outputText>
-							</p>
-							<h:dataTable value="#{group.slots}" var="slot">
-								<h:column>
-									<div class="text-sm text-gray-800 mb-2">
-										•
-										<h:outputText value="#{slot.start_time}" />
-										-
-										<h:outputText value="#{slot.end_time}" />
-									</div>
-								</h:column>
-							</h:dataTable>
-						</div>
-					</h:column>
-				</h:dataTable>
-			</div>
-		</div>
-
-		<!-- Search Results Table -->
-		<h:panelGroup
-			rendered="#{not empty doctorAvailabilityController.searchedAvailabilityList}">
-			<h2 class="text-2xl font-semibold text-green-700 mb-4">Search
-				Results</h2>
-			<div class="overflow-x-auto">
-				<h:dataTable
-					value="#{doctorAvailabilityController.searchedAvailabilityList}"
-					var="slot" styleClass="min-w-full text-sm border"
-					headerClass="bg-green-600 text-white"
-					rowClasses="bg-white even:bg-green-50 odd:bg-green-100">
-
-					<h:column>
-						<f:facet name="header">Date</f:facet>
-						<h:outputText value="#{slot.available_date}">
-							<f:convertDateTime pattern="yyyy-MM-dd" />
-						</h:outputText>
-					</h:column>
-
-					<h:column>
-						<f:facet name="header">Start</f:facet>
-						<h:outputText value="#{slot.start_time}" />
-					</h:column>
-
-					<h:column>
-						<f:facet name="header">End</f:facet>
-						<h:outputText value="#{slot.end_time}" />
-					</h:column>
-
-					<h:column>
-						<f:facet name="header">Type</f:facet>
-						<h:outputText value="#{slot.slot_type}" />
-					</h:column>
-
-					<h:column>
-						<f:facet name="header">Max</f:facet>
-						<h:outputText value="#{slot.max_capacity}" />
-					</h:column>
-
-					<h:column>
-						<f:facet name="header">Recurring</f:facet>
-						<h:outputText value="#{slot.is_recurring ? 'Yes' : 'No'}" />
-					</h:column>
-
-					<h:column>
-						<f:facet name="header">Notes</f:facet>
-						<h:outputText value="#{slot.notes}" />
-					</h:column>
-				</h:dataTable>
-			</div>
-		</h:panelGroup>
 	</div>
 </body>
 	</html>
