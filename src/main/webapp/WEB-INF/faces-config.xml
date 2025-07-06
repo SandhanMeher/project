@@ -34,10 +34,9 @@
 		<managed-bean-class>com.infinite.controller.AppointmentPdfController</managed-bean-class>
 		<managed-bean-scope>session</managed-bean-scope>
 	</managed-bean>
-		<managed-bean>
+	<managed-bean>
 		<managed-bean-name>doctorAvailabilityController</managed-bean-name>
 		<managed-bean-class>com.infinite.controller.DoctorAvailabilityController</managed-bean-class>
 		<managed-bean-scope>session</managed-bean-scope>
 	</managed-bean>
-	
 </faces-config>
