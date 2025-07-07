@@ -14,8 +14,6 @@ import com.infinite.dao.AppointmentDao;
 import com.infinite.dao.AppointmentDaoImpl;
 import com.infinite.model.*;
 
-@ManagedBean
-@SessionScoped
 public class AppointmentController implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -117,7 +115,7 @@ public class AppointmentController implements Serializable {
 	public String getAvailabilityId() {
 		return availabilityId;
 	}
-
+	
 	public void setAvailabilityId(String availabilityId) {
 		this.availabilityId = availabilityId;
 	}
