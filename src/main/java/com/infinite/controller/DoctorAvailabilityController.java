@@ -19,7 +19,7 @@ public class DoctorAvailabilityController implements Serializable {
 
 	private DoctorAvailabilityDaoImpl dao = new DoctorAvailabilityDaoImpl();
 
-	private String doctorId = "D1003"; // hardcoded for demo
+	private String doctorId = "D1003"; // Hardcoded for demo
 	private List<DayAvailabilitySummary> groupedAvailabilityList;
 	private List<DoctorAvailability> searchedAvailabilityList;
 	private DoctorAvailability selectedAvailability;
@@ -30,7 +30,7 @@ public class DoctorAvailabilityController implements Serializable {
 		if (initialized)
 			return;
 		initialized = true;
-		loadAllUpcomingAvailability(); // load all future slots with correct logic
+		loadAllUpcomingAvailability();
 	}
 
 	public void loadAllUpcomingAvailability() {
@@ -41,13 +41,11 @@ public class DoctorAvailabilityController implements Serializable {
 
 		Map<Date, List<DoctorAvailability>> dateMap = new TreeMap<>();
 
-		// Group by available_date
 		for (DoctorAvailability slot : futureSlots) {
 			Date availableDate = slot.getAvailable_date();
 			dateMap.computeIfAbsent(availableDate, k -> new ArrayList<>()).add(slot);
 		}
 
-		// Create summary per date
 		for (Map.Entry<Date, List<DoctorAvailability>> entry : dateMap.entrySet()) {
 			Date sqlDate = entry.getKey();
 			List<DoctorAvailability> dailySlots = entry.getValue();
@@ -55,12 +53,21 @@ public class DoctorAvailabilityController implements Serializable {
 			String displayDate = formatDisplayDate(sqlDate);
 
 			int totalAvailableSlots = 0;
+			String representativeAvailabilityId = null;
+
 			for (DoctorAvailability da : dailySlots) {
 				int remaining = dao.getRemainingSlotsForAvailability(da.getAvailability_id());
 				totalAvailableSlots += remaining;
+
+				// Pick the first availability_id for the date (for selection purposes)
+				if (representativeAvailabilityId == null) {
+					representativeAvailabilityId = da.getAvailability_id();
+				}
 			}
 
-			groupedAvailabilityList.add(new DayAvailabilitySummary(sqlDate, displayDate, totalAvailableSlots));
+			groupedAvailabilityList.add(
+				new DayAvailabilitySummary(sqlDate, displayDate, totalAvailableSlots, representativeAvailabilityId)
+			);
 		}
 	}
 
@@ -81,7 +88,7 @@ public class DoctorAvailabilityController implements Serializable {
 		this.selectedAvailability = availability;
 	}
 
-	// Getters and Setters
+	// ✅ Getters and Setters
 	public String getDoctorId() {
 		return doctorId;
 	}
@@ -111,16 +118,18 @@ public class DoctorAvailabilityController implements Serializable {
 		this.selectedAvailability = selectedAvailability;
 	}
 
-	// Inner class for summary data
+	// ✅ Inner class with availabilityId now included
 	public static class DayAvailabilitySummary {
 		private Date date;
 		private String displayDate;
 		private int totalSlots;
+		private String availabilityId;
 
-		public DayAvailabilitySummary(Date date, String displayDate, int totalSlots) {
+		public DayAvailabilitySummary(Date date, String displayDate, int totalSlots, String availabilityId) {
 			this.date = date;
 			this.displayDate = displayDate;
 			this.totalSlots = totalSlots;
+			this.availabilityId = availabilityId;
 		}
 
 		public Date getDate() {
@@ -133,6 +142,10 @@ public class DoctorAvailabilityController implements Serializable {
 
 		public int getTotalSlots() {
 			return totalSlots;
+		}
+
+		public String getAvailabilityId() { // ✅ This is needed in your JSP
+			return availabilityId;
 		}
 	}
 }

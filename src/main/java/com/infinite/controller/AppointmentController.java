@@ -12,80 +12,116 @@ import javax.faces.bean.SessionScoped;
 
 import com.infinite.dao.AppointmentDao;
 import com.infinite.dao.AppointmentDaoImpl;
+import com.infinite.dao.DoctorAvailabilityDao;
+import com.infinite.dao.DoctorAvailabilityDaoImpl;
 import com.infinite.model.*;
 
+@ManagedBean(name = "appointmentController")
+@SessionScoped
 public class AppointmentController implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private String availabilityId = "A2012";
+	private String availabilityId;
 	private int selectedSlot;
 	private Appointment appointment = new Appointment();
+	private DoctorAvailability availability;
 	private List<SlotDisplay> availableSlots;
 
 	private String message;
 	private boolean success;
 
 	private AppointmentDao appointmentDao = new AppointmentDaoImpl();
+	private DoctorAvailabilityDao doctorAvailabilityDao = new DoctorAvailabilityDaoImpl();
 
-	public void loadAvailableSlots() {
-		List<Integer> slotNumbers = appointmentDao.getAvailableSlotNumbers(availabilityId);
+	// Called from UI to load slots
+	public String selectAvailabilityAndLoadSlots(String selectedAvailabilityId) {
+		this.availabilityId = selectedAvailabilityId;
+		return loadAvailableSlots();
+	}
 
-		// Sample hardcoded availability; ideally fetch from DB
-		Timestamp start = Timestamp.valueOf("2025-07-09 10:30:00");
-		Timestamp end = Timestamp.valueOf("2025-07-09 11:30:00");
-		int maxCapacity = 4;
+	public String loadAvailableSlots() {
+		try {
+			availableSlots = new ArrayList<>();
 
-		availableSlots = new ArrayList<>();
+			if (availabilityId == null || availabilityId.trim().isEmpty()) {
+				message = "❌ Availability ID is missing.";
+				success = false;
+				return null;
+			}
 
-		long totalMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-		long slotMinutes = totalMinutes / maxCapacity;
+			availability = doctorAvailabilityDao.getAvailabilityById(availabilityId);
+			if (availability == null) {
+				message = "❌ Availability not found for ID: " + availabilityId;
+				success = false;
+				return null;
+			}
 
-		for (int slotNo : slotNumbers) {
-			long slotStartMillis = start.getTime() + (slotNo - 1) * slotMinutes * 60 * 1000;
-			long slotEndMillis = slotStartMillis + slotMinutes * 60 * 1000;
+			List<Integer> slotNumbers = appointmentDao.getAvailableSlotNumbers(availabilityId);
+			if (slotNumbers == null || slotNumbers.isEmpty()) {
+				message = "❌ No available slots found.";
+				success = false;
+				return null;
+			}
 
-			LocalTime slotStartTime = new Timestamp(slotStartMillis).toLocalDateTime().toLocalTime();
-			LocalTime slotEndTime = new Timestamp(slotEndMillis).toLocalDateTime().toLocalTime();
+			Timestamp start = Timestamp.valueOf(availability.getAvailable_date() + " " + availability.getStart_time());
+			Timestamp end = Timestamp.valueOf(availability.getAvailable_date() + " " + availability.getEnd_time());
+			int maxCapacity = availability.getMax_capacity();
 
-			availableSlots.add(new SlotDisplay(slotNo, slotStartTime.toString(), slotEndTime.toString()));
+			long totalMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+			long slotMinutes = totalMinutes / maxCapacity;
+
+			for (int slotNo : slotNumbers) {
+				long slotStartMillis = start.getTime() + (slotNo - 1) * slotMinutes * 60 * 1000;
+				long slotEndMillis = slotStartMillis + slotMinutes * 60 * 1000;
+
+				LocalTime slotStartTime = new Timestamp(slotStartMillis).toLocalDateTime().toLocalTime();
+				LocalTime slotEndTime = new Timestamp(slotEndMillis).toLocalDateTime().toLocalTime();
+
+				availableSlots.add(new SlotDisplay(slotNo, slotStartTime.toString(), slotEndTime.toString()));
+			}
+
+			message = "✅ Loaded " + availableSlots.size() + " available slot(s)";
+			success = true;
+		} catch (Exception e) {
+			e.printStackTrace();
+			message = "❌ Error loading slots: " + e.getMessage();
+			success = false;
+			availableSlots = new ArrayList<>();
 		}
-
-		message = availableSlots.isEmpty() ? "❌ No available slots for Availability ID " + availabilityId
-				: "✅ Loaded " + availableSlots.size() + " available slot(s)";
-		success = !availableSlots.isEmpty();
+		return "slotListView"; // navigate to slot listing page if needed
 	}
 
 	public String bookAppointment() {
 		try {
-			DoctorAvailability availability = new DoctorAvailability();
-			availability.setAvailability_id(availabilityId);
-			availability.setMax_capacity(4);
+			if (availability == null) {
+				availability = doctorAvailabilityDao.getAvailabilityById(availabilityId);
+			}
+			if (availability == null) {
+				message = "❌ Availability not found.";
+				success = false;
+				return null;
+			}
 
-			Doctors doctor = new Doctors();
-			doctor.setDoctor_id("D1003");
-
-			Providers provider = new Providers();
-			provider.setProvider_id("P1003");
+			Doctors doctor = availability.getDoctor();
+			Providers provider = doctor.getProvider();
 
 			Recipient recipient = new Recipient();
-			recipient.setH_id("H1003");
+			recipient.setH_id("H1003"); // should be dynamic from logged in user
 
+			Timestamp start = Timestamp.valueOf(availability.getAvailable_date() + " " + availability.getStart_time());
+			Timestamp end = Timestamp.valueOf(availability.getAvailable_date() + " " + availability.getEnd_time());
+			int maxCapacity = availability.getMax_capacity();
+
+			long slotMinutes = ((end.getTime() - start.getTime()) / (1000 * 60)) / maxCapacity;
+			long slotStart = start.getTime() + (selectedSlot - 1) * slotMinutes * 60 * 1000;
+			long slotEnd = slotStart + slotMinutes * 60 * 1000;
+
+			appointment.setAvailability(availability);
 			appointment.setDoctor(doctor);
 			appointment.setProvider(provider);
 			appointment.setRecipient(recipient);
-			appointment.setAvailability(availability);
 			appointment.setSlot_no(selectedSlot);
-			appointment.setAppointment_id("APPT" + System.currentTimeMillis());
-
-			Timestamp start = Timestamp.valueOf("2025-07-09 10:30:00");
-			Timestamp end = Timestamp.valueOf("2025-07-09 11:30:00");
-			int maxCapacity = availability.getMax_capacity();
-
-			long window = (end.getTime() - start.getTime()) / (1000 * 60) / maxCapacity;
-			long slotStart = start.getTime() + (selectedSlot - 1) * window * 60 * 1000;
-			long slotEnd = slotStart + window * 60 * 1000;
-
 			appointment.setStart(new Timestamp(slotStart));
 			appointment.setEnd(new Timestamp(slotEnd));
 			appointment.setRequested_at(Timestamp.valueOf(LocalDateTime.now()));
@@ -96,12 +132,12 @@ public class AppointmentController implements Serializable {
 			String result = appointmentDao.bookAnAppointment(appointment);
 
 			if (result.startsWith("Appointment booked")) {
-				success = true;
 				message = "✅ " + result;
+				success = true;
 				loadAvailableSlots();
 			} else {
-				success = false;
 				message = "❌ Booking failed: " + result;
+				success = false;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -115,7 +151,7 @@ public class AppointmentController implements Serializable {
 	public String getAvailabilityId() {
 		return availabilityId;
 	}
-	
+
 	public void setAvailabilityId(String availabilityId) {
 		this.availabilityId = availabilityId;
 	}
@@ -142,5 +178,9 @@ public class AppointmentController implements Serializable {
 
 	public boolean isSuccess() {
 		return success;
+	}
+
+	public DoctorAvailability getAvailability() {
+		return availability;
 	}
 }
