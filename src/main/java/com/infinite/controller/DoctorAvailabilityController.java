@@ -11,7 +11,8 @@ import javax.faces.bean.ViewScoped;
 import com.infinite.dao.DoctorAvailabilityDaoImpl;
 import com.infinite.model.DoctorAvailability;
 
-
+@ManagedBean
+@ViewScoped
 public class DoctorAvailabilityController implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -29,28 +30,41 @@ public class DoctorAvailabilityController implements Serializable {
 		if (initialized)
 			return;
 		initialized = true;
-		loadNextFiveDaysAvailability();
+		loadAllUpcomingAvailability(); // load all future slots with correct logic
 	}
 
-	public void loadNextFiveDaysAvailability() {
+	public void loadAllUpcomingAvailability() {
 		groupedAvailabilityList = new ArrayList<>();
-		Calendar calendar = Calendar.getInstance();
 
-		for (int i = 0; i < 5; i++) {
-			Date sqlDate = new Date(calendar.getTimeInMillis());
-			List<DoctorAvailability> dailySlots = dao.getAvailableSlotsByDoctorAndDate(doctorId, sqlDate);
+		Date today = new Date(System.currentTimeMillis());
+		List<DoctorAvailability> futureSlots = dao.getUpcomingAvailabilitiesForDoctor(doctorId, today);
 
-			if (dailySlots != null && !dailySlots.isEmpty()) {
-				String displayDate = formatDisplayDate(sqlDate);
-				int totalSlots = dailySlots.size(); // Total availability rows (each may have multiple slots)
-				groupedAvailabilityList.add(new DayAvailabilitySummary(sqlDate, displayDate, totalSlots));
+		Map<Date, List<DoctorAvailability>> dateMap = new TreeMap<>();
+
+		// Group by available_date
+		for (DoctorAvailability slot : futureSlots) {
+			Date availableDate = slot.getAvailable_date();
+			dateMap.computeIfAbsent(availableDate, k -> new ArrayList<>()).add(slot);
+		}
+
+		// Create summary per date
+		for (Map.Entry<Date, List<DoctorAvailability>> entry : dateMap.entrySet()) {
+			Date sqlDate = entry.getKey();
+			List<DoctorAvailability> dailySlots = entry.getValue();
+
+			String displayDate = formatDisplayDate(sqlDate);
+
+			int totalAvailableSlots = 0;
+			for (DoctorAvailability da : dailySlots) {
+				int remaining = dao.getRemainingSlotsForAvailability(da.getAvailability_id());
+				totalAvailableSlots += remaining;
 			}
-			calendar.add(Calendar.DATE, 1);
+
+			groupedAvailabilityList.add(new DayAvailabilitySummary(sqlDate, displayDate, totalAvailableSlots));
 		}
 	}
 
 	private String formatDisplayDate(Date sqlDate) {
-		// Format: Mon 8, Jul
 		SimpleDateFormat formatter = new SimpleDateFormat("E d, MMM", Locale.ENGLISH);
 		return formatter.format(sqlDate);
 	}
