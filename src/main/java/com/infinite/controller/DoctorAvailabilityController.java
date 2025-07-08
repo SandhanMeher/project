@@ -2,19 +2,16 @@ package com.infinite.controller;
 
 import java.io.Serializable;
 import java.sql.Date;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 import javax.faces.bean.ManagedBean;
 import javax.faces.bean.ViewScoped;
 
 import com.infinite.dao.DoctorAvailabilityDaoImpl;
-import com.infinite.dto.GroupedAvailability;
 import com.infinite.model.DoctorAvailability;
 
-@ManagedBean
-@ViewScoped
+
 public class DoctorAvailabilityController implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -22,7 +19,7 @@ public class DoctorAvailabilityController implements Serializable {
 	private DoctorAvailabilityDaoImpl dao = new DoctorAvailabilityDaoImpl();
 
 	private String doctorId = "D1003"; // hardcoded for demo
-	private List<GroupedAvailability> groupedAvailabilityList;
+	private List<DayAvailabilitySummary> groupedAvailabilityList;
 	private List<DoctorAvailability> searchedAvailabilityList;
 	private DoctorAvailability selectedAvailability;
 	private java.util.Date searchDate;
@@ -42,11 +39,20 @@ public class DoctorAvailabilityController implements Serializable {
 		for (int i = 0; i < 5; i++) {
 			Date sqlDate = new Date(calendar.getTimeInMillis());
 			List<DoctorAvailability> dailySlots = dao.getAvailableSlotsByDoctorAndDate(doctorId, sqlDate);
+
 			if (dailySlots != null && !dailySlots.isEmpty()) {
-				groupedAvailabilityList.add(new GroupedAvailability(sqlDate, dailySlots));
+				String displayDate = formatDisplayDate(sqlDate);
+				int totalSlots = dailySlots.size(); // Total availability rows (each may have multiple slots)
+				groupedAvailabilityList.add(new DayAvailabilitySummary(sqlDate, displayDate, totalSlots));
 			}
 			calendar.add(Calendar.DATE, 1);
 		}
+	}
+
+	private String formatDisplayDate(Date sqlDate) {
+		// Format: Mon 8, Jul
+		SimpleDateFormat formatter = new SimpleDateFormat("E d, MMM", Locale.ENGLISH);
+		return formatter.format(sqlDate);
 	}
 
 	public void searchAvailabilityByDate() {
@@ -66,7 +72,7 @@ public class DoctorAvailabilityController implements Serializable {
 		return doctorId;
 	}
 
-	public List<GroupedAvailability> getGroupedAvailabilityList() {
+	public List<DayAvailabilitySummary> getGroupedAvailabilityList() {
 		init();
 		return groupedAvailabilityList;
 	}
@@ -89,5 +95,30 @@ public class DoctorAvailabilityController implements Serializable {
 
 	public void setSelectedAvailability(DoctorAvailability selectedAvailability) {
 		this.selectedAvailability = selectedAvailability;
+	}
+
+	// Inner class for summary data
+	public static class DayAvailabilitySummary {
+		private Date date;
+		private String displayDate;
+		private int totalSlots;
+
+		public DayAvailabilitySummary(Date date, String displayDate, int totalSlots) {
+			this.date = date;
+			this.displayDate = displayDate;
+			this.totalSlots = totalSlots;
+		}
+
+		public Date getDate() {
+			return date;
+		}
+
+		public String getDisplayDate() {
+			return displayDate;
+		}
+
+		public int getTotalSlots() {
+			return totalSlots;
+		}
 	}
 }

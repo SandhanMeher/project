@@ -44,13 +44,17 @@ table.horizontal-table td {
 		<div class="scroll-x">
 			<h:dataTable
 				value="#{doctorAvailabilityController.groupedAvailabilityList}"
-				var="group" styleClass="horizontal-table">
+				var="day" styleClass="horizontal-table">
 				<h:column>
-					<h:outputText value="#{group.date}">
-						<f:convertDateTime pattern="yyyy-MM-dd" />
-					</h:outputText>
+					<div>
+						<h:outputText value="#{day.displayDate}" style="font-weight:bold;" />
+					</div>
+					<div>
+						<h:outputText value="#{day.totalSlots} slots available" />
+					</div>
 				</h:column>
 			</h:dataTable>
+
 		</div>
 	</h:form>
 
